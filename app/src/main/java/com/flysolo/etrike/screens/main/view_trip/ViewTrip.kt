@@ -301,10 +301,12 @@ fun ViewTripScreen(
                         }
 
                         item() {
+                            val status = state.transactions?.payment?.status?.name  ?: "UNPAID"
                             InformationCard(
                                 label = "Total Amount",
                                 icon = Icons.Default.Money,
-                                value = cost.toPhp()
+                                value = cost.toPhp(),
+                                desc = status
                             )
                         }
                         item(
@@ -335,8 +337,8 @@ fun ViewTripScreen(
                                         Button(
                                             modifier = modifier.fillMaxWidth().padding(8.dp),
                                             shape = MaterialTheme.shapes.small,
-                                            onClick = {events(ViewTripEvents.OnCancelTrip(transactionID))}
-                                        ) { Text("Completed", modifier = modifier.padding(8.dp)) }
+                                            onClick = {events(ViewTripEvents.OnCompleteTrip(transactionID))}
+                                        ) { Text("Trip Completed", modifier = modifier.padding(8.dp)) }
                                     }
                                     else -> {
                                         TextButton(

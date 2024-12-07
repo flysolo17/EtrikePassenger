@@ -51,7 +51,6 @@ fun HomeScreen(
     val context = LocalContext.current
     LaunchedEffect(state.user) {
         state.user?.let {
-
             events(HomeEvents.OnGetTransactions(it.id ?: ""))
         }
     }
@@ -82,6 +81,9 @@ fun HomeScreen(
                     isLoading = state.isGettingTransactions,
                     onTripSelected = {
                         navHostController.navigate(AppRouter.VIEWTRIP.navigate(it))
+                    },
+                    onMessage = {
+                        navHostController.navigate(AppRouter.CONVERSATION.navigate(it))
                     }
                 )
             }

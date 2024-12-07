@@ -31,6 +31,11 @@ fun TripScreen(
     navHostController: NavHostController
 ) {
     val context  = LocalContext.current
+    LaunchedEffect(state.user) {
+        state.user?.id?.let {
+            events(TripEvents.OnGetTrips(it))
+        }
+    }
     LaunchedEffect(
         state.errors
     ) {

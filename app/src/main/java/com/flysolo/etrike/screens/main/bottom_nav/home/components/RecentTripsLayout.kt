@@ -25,7 +25,8 @@ fun RecentTripsLayout(
     modifier: Modifier = Modifier,
     trips : List<TransactionWithDriver>,
     isLoading : Boolean,
-    onTripSelected : (String) -> Unit
+    onTripSelected : (String) -> Unit,
+    onMessage : (String) -> Unit
 ) {
     LazyRow (
         modifier = modifier.fillMaxWidth(),
@@ -59,6 +60,7 @@ fun RecentTripsLayout(
                         transactions = it.transactions,
                         driver = it.driver ,
                         onMessageDriver = {
+                            onMessage(it)
                         },
                         onClick = {
                             it.transactions.id?.let {

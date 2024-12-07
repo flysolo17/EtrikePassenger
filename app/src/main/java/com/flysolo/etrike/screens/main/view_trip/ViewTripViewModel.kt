@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flysolo.etrike.repository.transactions.TransactionRepository
+import com.flysolo.etrike.utils.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,22 +106,27 @@ class ViewTripViewModel @Inject constructor(
 
     private fun getTransaction(transactionID: String) {
         viewModelScope.launch {
-            state = state.copy(isLoading = true)
-            transactionRepository.viewTripInfo(transactionID).onSuccess {
-                state = state.copy(
-                    isLoading = false,
-                    passenger = it.passenger,
-                    driver = it.driver,
-                    transactions = it.transactions
-                )
-            }.onFailure {
-                state = state.copy(
-                    isLoading = false,
-                    errors = it.message
-                )
+            transactionRepository.viewTripInfo(transactionID) {
+                state = when (it) {
+                    is UiState.Error -> state.copy(
+                        isLoading = false,
+                        errors = it.message
+                    )
+
+                    UiState.Loading -> state.copy(
+                        isLoading = true,
+                        errors = null
+                    )
+
+                    is UiState.Success -> state.copy(
+                        isLoading = false,
+                        passenger = it.data.passenger,
+                        driver = it.data.driver,
+                        transactions = it.data.transactions
+                    )
+                }
+
             }
         }
-
-
     }
 }

@@ -110,7 +110,7 @@ fun RecentTripCard(
                         value = pickLocation ?: "unknown"
                     )
                     TripInfo(
-                        label = "Pickup Location",
+                        label = "Drop Off Location",
                         value = dropLocation ?: "unknown"
                     )
                 }

@@ -24,9 +24,7 @@ class TripViewModel @Inject constructor(
                 state = state.copy(
                     user = e.user
                 )
-                e.user?.id?.let {
-                    getTrips(it)
-                }
+
             }
         }
     }

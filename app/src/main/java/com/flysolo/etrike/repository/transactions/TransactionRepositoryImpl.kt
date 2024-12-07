@@ -7,6 +7,7 @@ import com.flysolo.etrike.models.transactions.TransactionWithDriver
 import com.flysolo.etrike.models.transactions.TransactionWithPassengerAndDriver
 import com.flysolo.etrike.models.transactions.Transactions
 import com.flysolo.etrike.models.users.USER_COLLECTION
+import com.flysolo.etrike.utils.UiState
 import com.flysolo.etrike.utils.generateRandomNumberString
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.Date
 
 
@@ -64,7 +66,44 @@ class TransactionRepositoryImpl(
         }
     }
 
-
+    override suspend fun getMyOnGoingTransactions(
+        passengerID: String,
+        result: (UiState<List<TransactionWithDriver>>) -> Unit
+    ) {
+        result.invoke(UiState.Loading)
+        firestore.collection(TRANSACTION_COLLECTION)
+            .whereEqualTo("passengerID", passengerID)
+            .whereNotIn("status", listOf(TransactionStatus.COMPLETED, TransactionStatus.FAILED,TransactionStatus.CANCELLED))
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { value, error ->
+                error?.let {
+                    result.invoke(UiState.Error(it.message.toString()))
+                }
+                value?.let {
+                    val transactions = value.toObjects(Transactions::class.java)
+                    val transactionWithUsers  = mutableListOf<TransactionWithDriver>()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val transactionWithUser = transactions.map { transaction ->
+                            val driverID = transaction.driverID ?: ""
+                            val driver = if (driverID.isNotEmpty()) {
+                                firestore.collection(USER_COLLECTION)
+                                    .document(driverID)
+                                    .get()
+                                    .await()
+                                    .toObject(com.flysolo.etrike.models.users.User::class.java)
+                            } else null
+                            TransactionWithDriver(
+                                transactions = transaction,
+                                driver = driver
+                            )
+                        }
+                        transactionWithUsers.addAll(transactionWithUser)
+                        result.invoke(UiState.Success(transactionWithUsers))
+                    }
+                }
+            }
+    }
 
 
     override suspend fun getAllTransactions(passengerID: String): Result<List<TransactionWithDriver>> {
@@ -107,58 +146,115 @@ class TransactionRepositoryImpl(
         }
     }
 
-    override suspend fun viewTripInfo(transactionID: String): Result<TransactionWithPassengerAndDriver> {
-        return try {
-            val result = CompletableDeferred<Result<TransactionWithPassengerAndDriver>>()
-            val transactionRef = firestore.collection(TRANSACTION_COLLECTION).document(transactionID)
-
-            transactionRef.addSnapshotListener { transactionSnapshot, error ->
-                if (error != null) {
-                    result.complete(Result.failure(Exception("Failed to get transaction: ${error.message}")))
+    override suspend fun viewTripInfo(
+        transactionID: String,
+        result: (UiState<TransactionWithPassengerAndDriver>) -> Unit
+    ) {
+        val transactionRef = firestore.collection(TRANSACTION_COLLECTION).document(transactionID)
+        result.invoke(UiState.Loading)
+        transactionRef.addSnapshotListener { value, error ->
+            error?.let {
+                result.invoke(UiState.Error(it.message.toString()))
+                return@addSnapshotListener
+            }
+            value?.let { snapshot ->
+                val transaction = snapshot.toObject(Transactions::class.java)
+                if (transaction == null) {
+                    result.invoke(UiState.Error("Transaction not found!"))
                     return@addSnapshotListener
                 }
 
-                if (transactionSnapshot != null && transactionSnapshot.exists()) {
-                    val transaction = transactionSnapshot.toObject(Transactions::class.java)
-                    if (transaction == null) {
-                        result.complete(Result.failure(Exception("Failed to parse transaction")))
-                        return@addSnapshotListener
-                    }
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val driverInfo = if (!transaction.driverID.isNullOrEmpty()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val driverInfo = transaction.driverID?.let { driverID ->
                             firestore.collection(USER_COLLECTION)
-                                .document(transaction.driverID)
+                                .document(driverID)
                                 .get()
                                 .await()
                                 .toObject(com.flysolo.etrike.models.users.User::class.java)
-                        } else null
+                        }
 
-                        val passengerInfo = if (!transaction.passengerID.isNullOrEmpty()) {
+                        val passengerInfo = transaction.passengerID?.let { passengerID ->
                             firestore.collection(USER_COLLECTION)
-                                .document(transaction.passengerID)
+                                .document(passengerID)
                                 .get()
                                 .await()
                                 .toObject(com.flysolo.etrike.models.users.User::class.java)
-                        } else null
+                        }
+
                         val transactionWithDetails = TransactionWithPassengerAndDriver(
                             transactions = transaction,
                             passenger = passengerInfo,
                             driver = driverInfo
                         )
 
-                        result.complete(Result.success(transactionWithDetails))
+                        withContext(Dispatchers.Main) {
+                            result(UiState.Success(transactionWithDetails))
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            result(UiState.Error(e.message.toString()))
+                        }
                     }
-                } else {
-                    result.complete(Result.failure(Exception("Transaction not found")))
                 }
             }
-
-            result.await()
-        } catch (e: Exception) {
-            Result.failure(Exception("Failed to view trip info: ${e.message}"))
         }
     }
+
+    //    override suspend fun viewTripInfo(transactionID: String): Result<TransactionWithPassengerAndDriver> {
+//        return try {
+//            val result = CompletableDeferred<Result<TransactionWithPassengerAndDriver>>()
+//            val transactionRef = firestore.collection(TRANSACTION_COLLECTION).document(transactionID)
+//
+//            transactionRef.addSnapshotListener { transactionSnapshot, error ->
+//                if (error != null) {
+//                    result.complete(Result.failure(Exception("Failed to get transaction: ${error.message}")))
+//                    return@addSnapshotListener
+//                }
+//
+//                if (transactionSnapshot != null && transactionSnapshot.exists()) {
+//                    val transaction = transactionSnapshot.toObject(Transactions::class.java)
+//                    if (transaction == null) {
+//                        result.complete(Result.failure(Exception("Failed to parse transaction")))
+//                        return@addSnapshotListener
+//                    }
+//
+//                    CoroutineScope(Dispatchers.IO).launch {
+//                        val driverInfo = if (!transaction.driverID.isNullOrEmpty()) {
+//                            firestore.collection(USER_COLLECTION)
+//                                .document(transaction.driverID)
+//                                .get()
+//                                .await()
+//                                .toObject(com.flysolo.etrike.models.users.User::class.java)
+//                        } else null
+//
+//                        val passengerInfo = if (!transaction.passengerID.isNullOrEmpty()) {
+//                            firestore.collection(USER_COLLECTION)
+//                                .document(transaction.passengerID)
+//                                .get()
+//                                .await()
+//                                .toObject(com.flysolo.etrike.models.users.User::class.java)
+//                        } else null
+//                        val transactionWithDetails = TransactionWithPassengerAndDriver(
+//                            transactions = transaction,
+//                            passenger = passengerInfo,
+//                            driver = driverInfo
+//                        )
+//
+//                        result.complete(Result.success(transactionWithDetails))
+//                    }
+//                } else {
+//                    result.complete(Result.failure(Exception("Transaction not found")))
+//                }
+//            }
+//
+//            result.await()
+//        } catch (e: Exception) {
+//            Result.failure(Exception("Failed to view trip info: ${e.message}"))
+//        }
+//    }
+
+
 
     override suspend fun acceptDriver(transactionID: String): Result<String> {
         return try {
@@ -196,8 +292,9 @@ class TransactionRepositoryImpl(
                 .collection(TRANSACTION_COLLECTION)
                 .document(transactionID)
                 .update(
+                    "status",TransactionStatus.COMPLETED,
                    "payment.status",PaymentStatus.PAID,
-                    "updatedAt",Date()
+                    "updatedAt", Date()
                 ).await()
             Result.success("Trip is Completed!")
         } catch (e : Exception) {
@@ -214,7 +311,7 @@ class TransactionRepositoryImpl(
                     "status",TransactionStatus.CANCELLED,
                     "updatedAt",Date()
                 ).await()
-            Result.success("Successfully Decline")
+            Result.success("Trip Completed!")
         } catch (e : Exception) {
             Result.failure(e)
         }
