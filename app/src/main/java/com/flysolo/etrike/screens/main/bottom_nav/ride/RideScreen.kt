@@ -59,8 +59,10 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 
 import com.flysolo.etrike.screens.main.bottom_nav.ride.components.EtrikeMap
+import com.flysolo.etrike.screens.main.bottom_nav.ride.components.LocationDialog
 import com.flysolo.etrike.screens.main.bottom_nav.ride.components.MapInformationBottomSheet
 import com.flysolo.etrike.screens.main.bottom_nav.ride.components.SearchBottomDialog
+import com.flysolo.etrike.utils.getAddressFromLatLng
 import com.flysolo.etrike.utils.shortToast
 
 import com.google.android.gms.location.LocationServices
@@ -68,6 +70,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
@@ -87,6 +90,9 @@ fun RideScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val placesClient: PlacesClient
+
+
     val fineLocationPermission = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_FINE_LOCATION
     )
@@ -142,7 +148,13 @@ fun RideScreen(
             EtrikeMap(
                 state = state,
                 events = events,
-                cameraState = cameraState
+                cameraState = cameraState,
+                onMapClick = {
+                    events(RideEvents.OnSelectedPosition(it))
+                    val origin = "${state.currentLocation?.latLang?.latitude},${state.currentLocation?.latLang?.longitude}"
+                    val destination = "${it.latLang?.latitude},${it.latLang?.longitude}"
+                    events(RideEvents.OnGetDirections(origin, destination))
+                }
             )
 
             Box(
@@ -154,6 +166,7 @@ fun RideScreen(
                     events = events
                 )
             }
+
             Row(
                 modifier = modifier.fillMaxWidth().padding(24.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -176,12 +189,15 @@ fun RideScreen(
 
                 FloatingActionButton(
                     onClick = {
-                        scope.launch {
-                            cameraState.animate(
-                                update = CameraUpdateFactory.newLatLngZoom(state.currentPosition, 15f),
-                                durationMs = 1000 // Adjust duration for the animation in milliseconds
-                            )
+                        state.currentLocation?.latLang?.let {location ->
+                            scope.launch {
+                                cameraState.animate(
+                                    update = CameraUpdateFactory.newLatLngZoom(location, 15f),
+                                    durationMs = 1000
+                                )
+                            }
                         }
+
                     },
                     shape = CircleShape,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -202,4 +218,4 @@ fun RideScreen(
 
 
 
-private const val REQUEST_LOCATION_PERMISSION = 1
+public const val REQUEST_LOCATION_PERMISSION = 1

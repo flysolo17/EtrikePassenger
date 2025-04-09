@@ -70,9 +70,9 @@ fun SearchBottomDialog(
                     }
                 }
                 item {
-                    val currentPositionLabel = state.currentPosition.getAddressFromLatLng(context)
+                    val currentPositionLabel = state.currentLocation?.name
                     SelectPlaceAutoComplete(
-                        text = currentPositionLabel,
+                        text = currentPositionLabel ?: "unknown",
                         readOnly = true,
                         label = "Current Location",
                         onChange = {
@@ -103,18 +103,17 @@ fun SearchBottomDialog(
                 item {
                     Button(
                         modifier = modifier.fillMaxWidth().padding(8.dp),
-                        enabled = !state.isLoading && state.selectedPlace != null,
+                        enabled = !state.isLoading && state.selectedLocation != null,
                         shape = MaterialTheme.shapes.small,
                         onClick = {
-
-                            val origin = "${state.currentPosition.latitude},${state.currentPosition.longitude}"
-                            val destination = "${state.selectedPlace?.latLng?.latitude},${state.selectedPlace?.latLng?.longitude}"
+                            val origin = "${state.currentLocation?.latLang?.latitude},${state.currentLocation?.latLang?.longitude}"
+                            val destination = "${state.selectedLocation?.latLang?.latitude},${state.selectedLocation?.latLang?.longitude}"
                             showBottomSheet = false
                             onConfirm(origin,destination)
                         }
                     ) {
-                        Text("Confirm", modifier = modifier.padding(8.dp))
 
+                        Text("Confirm", modifier = modifier.padding(8.dp))
                     }
                 }
             }

@@ -30,6 +30,8 @@ object FirebaseModules {
         return FirebaseAuth.getInstance()
     }
 
+
+
     @Provides
     @Singleton
     fun provideFirestore(): FirebaseFirestore {

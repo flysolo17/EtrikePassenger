@@ -65,11 +65,16 @@ fun RecentTripCard(
     modifier: Modifier = Modifier,
     transactions: Transactions,
     driver: User ? ,
-    onClick : () -> Unit,
+    onClick : (String) -> Unit,
     onMessageDriver : (String) -> Unit,
 ) {
     OutlinedCard(
-        onClick =onClick,
+        onClick ={
+            val id = transactions.id
+            if (id != null) {
+                onClick(id)
+            }
+        },
         modifier = modifier
             .fillMaxWidth()
     ) {
@@ -102,16 +107,16 @@ fun RecentTripCard(
                 Column(
                     modifier = modifier.weight(1f).padding(4.dp)
                 ) {
-                    val pickLocation = transactions.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.start_address
-                    val dropLocation = transactions.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.end_address
+                    val pickLocation = transactions.locationDetails.pickup
+                    val dropLocation = transactions.locationDetails.dropOff
 
                     TripInfo(
                         label = "Pickup Location",
-                        value = pickLocation ?: "unknown"
+                        value = pickLocation?.name ?: "unknown"
                     )
                     TripInfo(
                         label = "Drop Off Location",
-                        value = dropLocation ?: "unknown"
+                        value = dropLocation?.name ?: "unknown"
                     )
                 }
                 Column(

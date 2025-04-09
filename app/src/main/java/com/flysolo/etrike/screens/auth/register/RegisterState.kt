@@ -4,8 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.flysolo.etrike.models.contacts.Contacts
 import com.flysolo.etrike.utils.TextFieldData
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.auth.User
 
 data class RegisterState(
+    val users : FirebaseUser ? = null,
     val isLoading : Boolean = false,
     val isRegistered : String ? = null,
     val errors : String ? = null,

@@ -60,6 +60,7 @@ import androidx.credentials.provider.BeginGetCredentialRequest
 import androidx.navigation.NavHostController
 import com.flysolo.etrike.R
 import com.flysolo.etrike.config.AppRouter
+import com.flysolo.etrike.models.users.UserWithVerification
 import com.flysolo.etrike.utils.EtrikeColors
 import com.flysolo.etrike.utils.shortToast
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
@@ -88,13 +89,10 @@ fun LoginScreen(
         handleSignInResult(activityResult.data, oneTapClient, context, events)
     }
 
-    LaunchedEffect(state) {
-        if (state.user != null) {
-            val route = if (state.user.isVerified) AppRouter.MAIN.route else AppRouter.VERIFICATION.route
-            navHostController.navigate(route) {
-                popUpTo(AppRouter.LOGIN.route) { inclusive = true }
 
-            }
+    LaunchedEffect(state.user) {
+        if (state.user != null) {
+            onNavigate(state.user,navHostController)
         }
     }
 
@@ -106,7 +104,6 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-
         ) {
             Image(
                 painter = painterResource(R.drawable.logo),
@@ -375,6 +372,36 @@ private fun startGoogleSignIn(
             context.shortToast("Google Sign-In failed: ${e.localizedMessage}")
         }
 }
+
+private fun onNavigate(users: UserWithVerification, navHostController: NavHostController) {
+    val user = users.user
+    val isVerified = users.isVerified
+    when {
+        user != null && isVerified -> {
+            if (!user.pin?.pin.isNullOrEmpty()) {
+                navHostController.navigate(AppRouter.PIN.route) {
+                    popUpTo(AppRouter.LOGIN.route) { inclusive = true }
+                }
+            } else {
+                navHostController.navigate(AppRouter.MAIN.route) {
+                    popUpTo(AppRouter.LOGIN.route) { inclusive = true }
+                }
+            }
+
+        }
+        user != null && !isVerified -> {
+            navHostController.navigate(AppRouter.VERIFICATION.route) {
+                popUpTo(AppRouter.LOGIN.route) { inclusive = true }
+            }
+        }
+        else -> {
+            navHostController.navigate(AppRouter.REGISTER.route) {
+                popUpTo(AppRouter.LOGIN.route) { inclusive = true }
+            }
+        }
+    }
+}
+
 
 private fun handleSignInResult(
     data: Intent?,

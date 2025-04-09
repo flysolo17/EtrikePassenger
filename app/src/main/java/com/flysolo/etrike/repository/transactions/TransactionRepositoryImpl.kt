@@ -1,5 +1,7 @@
 package com.flysolo.etrike.repository.transactions
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.flysolo.etrike.models.transactions.PaymentStatus
 import com.flysolo.etrike.models.transactions.TransactionStatus
@@ -9,9 +11,13 @@ import com.flysolo.etrike.models.transactions.Transactions
 import com.flysolo.etrike.models.users.USER_COLLECTION
 import com.flysolo.etrike.utils.UiState
 import com.flysolo.etrike.utils.generateRandomNumberString
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.auth.User
+import com.google.firebase.firestore.snapshots
+import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,52 +25,54 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.catch
+
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
+import kotlin.coroutines.resume
 
 
 const val TRANSACTION_COLLECTION  = "transactions"
 class TransactionRepositoryImpl(
     val firestore: FirebaseFirestore,
 ): TransactionRepository {
+
     override suspend fun createTransaction(transactions: Transactions): Result<String> {
         return try {
             val id = generateRandomNumberString(15)
             transactions.id = id
             val transactionRef = firestore.collection(TRANSACTION_COLLECTION).document(id)
             transactionRef.set(transactions)
-            Result.success("Transaction Created")
+            Result.success(id)
         } catch (e: Exception) {
             Result.failure(Exception("Failed to create transaction: ${e.message}"))
         }
     }
 
 
-
-
-    override suspend fun getAllMyTrips(passengerID: String): Flow<List<Transactions>> = callbackFlow {
-        try {
-            val listenerRegistration = firestore.collection(TRANSACTION_COLLECTION)
-                .whereEqualTo("passengerID", passengerID)
-                .orderBy("updatedAt", Query.Direction.DESCENDING)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        close(error)
-                    } else if (snapshot != null) {
-                        val transactions = snapshot.toObjects(Transactions::class.java)
-                        trySend(transactions).isSuccess
-                    }
+  override suspend fun getAllMyTrips(passengerID: String): Flow<List<Transactions>> = callbackFlow {
+        val listenerRegistration = firestore.collection(TRANSACTION_COLLECTION)
+            .whereEqualTo("passengerID", passengerID)
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error) // Close flow on error
+                    return@addSnapshotListener
                 }
+                snapshot?.let {
+                    trySend(it.toObjects(Transactions::class.java)).isSuccess
+                }
+            }
 
-            awaitClose { listenerRegistration.remove() }
-        } catch (e: Exception) {
-            trySend(emptyList<Transactions>()).isSuccess
+        awaitClose {
+            listenerRegistration.remove()
         }
-    }
+  }.catch { emit(emptyList()) }
+
 
     override suspend fun getMyOnGoingTransactions(
         passengerID: String,
@@ -309,6 +317,59 @@ class TransactionRepositoryImpl(
                 .document(transactionID)
                 .update(
                     "status",TransactionStatus.CANCELLED,
+                    "updatedAt",Date()
+                ).await()
+            Result.success("Trip Completed!")
+        } catch (e : Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    override suspend fun getTransactionByID(
+        transactionID: String,
+        result: (UiState<Transactions?>) -> Unit
+    ) {
+
+        result(UiState.Loading)
+
+        val docRef = firestore.collection(TRANSACTION_COLLECTION).document(transactionID)
+
+        docRef.addSnapshotListener { value, error ->
+            value?.let {
+                result(UiState.Success(it.toObject(Transactions::class.java)))
+            }
+            error?.let {
+                result(UiState.Error(it.localizedMessage.toString()))
+            }
+        }
+
+    }
+
+
+
+    override suspend fun markAsFailed(transactionID: String): Result<String> {
+        return try {
+            firestore
+                .collection(TRANSACTION_COLLECTION)
+                .document(transactionID)
+                .update(
+                    "status",TransactionStatus.FAILED,
+                    "updatedAt",Date()
+                ).await()
+            Result.success("Trip Completed!")
+        } catch (e : Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun markAsPending(transactionID: String): Result<String> {
+        return try {
+             firestore
+                .collection(TRANSACTION_COLLECTION)
+                .document(transactionID)
+                .update(
+                    "status",TransactionStatus.PENDING,
                     "updatedAt",Date()
                 ).await()
             Result.success("Trip Completed!")

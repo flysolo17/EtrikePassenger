@@ -19,6 +19,21 @@ class RegisterViewModel @Inject constructor(
     private val authRepository : AuthRepository
 ) : ViewModel() {
     var state by mutableStateOf(RegisterState())
+    init {
+        viewModelScope.launch {
+            val user = authRepository.getFirebaseUser()
+            if (user != null) {
+                state = state.copy(
+                    users = user,
+                    email = state.email.copy(
+                        value = user.email ?: ""
+                    )
+                )
+            }
+
+
+        }
+    }
     fun events(e : RegisterEvents) {
         when(e) {
             is RegisterEvents.OnNext -> state = state.copy(selectedTab = e.index)
@@ -149,6 +164,7 @@ class RegisterViewModel @Inject constructor(
     private fun submit() {
         // Create a User object from the current state
         val user = com.flysolo.etrike.models.users.User(
+
             name = state.name.value,
             email = state.email.value,
             phone = state.phone.value
@@ -160,8 +176,12 @@ class RegisterViewModel @Inject constructor(
             state = state.copy(isLoading = true)
 
             // Attempt to register the user with the contacts
-            val result = authRepository.register(user, state.password.value, state.contacts)
-
+            val result = authRepository.register(
+                state.users,
+                user,
+                state.password.value,
+                state.contacts
+            )
             result.onSuccess {
                 state = state.copy(isLoading = false, isRegistered = it, errors = null)
             }.onFailure {

@@ -63,9 +63,7 @@ fun RecentTripsLayout(
                             onMessage(it)
                         },
                         onClick = {
-                            it.transactions.id?.let {
-                                onTripSelected(it)
-                            }
+                            onTripSelected(it)
                         }
                     )
                 }

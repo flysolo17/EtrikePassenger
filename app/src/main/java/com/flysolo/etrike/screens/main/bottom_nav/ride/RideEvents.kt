@@ -31,4 +31,7 @@ sealed interface RideEvents {
     ) : RideEvents
 
     data class OnRideNow(val context: Context) : RideEvents
+
+    data class OnSelectedPosition(val selectedLocation: SelectedLocation) : RideEvents
+    data class OnFetNearestPlaceFromLatLng(val latLng: LatLng,val callback : (SelectedLocation?) -> Unit) : RideEvents
 }

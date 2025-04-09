@@ -21,3 +21,10 @@ fun TextFieldDefaults.EtrikeColors(): TextFieldColors {
 
     )
 }
+
+
+data class Password(
+    val value : String = "",
+    val isError : Boolean = false,
+    val errorMessage : String? = null
+)

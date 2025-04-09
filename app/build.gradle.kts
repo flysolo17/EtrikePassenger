@@ -84,15 +84,16 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation(libs.androidx.ui.tooling.preview) //preview UI para di irun yung project
+    implementation(libs.androidx.material3) // para UI
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.play.services.location)
     implementation(libs.places)
-
-
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.firebase.messaging)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -100,6 +101,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+
 
 
     //coil for image rendering
@@ -131,6 +134,7 @@ dependencies {
     implementation("com.maxkeppeler.sheets-compose-dialogs:color:1.2.0")
     //icons
     implementation("androidx.compose.material:material-icons-extended:1.5.3")
+
 
     implementation ("androidx.compose.foundation:foundation:1.7.4")
 
@@ -164,6 +168,27 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
+
+
+
+    //biometric
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
+
+
+    //phone auth
+    implementation("com.google.android.play:integrity:1.4.0")
+    implementation("com.google.android.gms:play-services-safetynet:18.1.0")
+
+
+
+    //qr scanner
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation ("com.google.zxing:core:3.4.1")
+    //worker
+//    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
 }
 
 kapt {

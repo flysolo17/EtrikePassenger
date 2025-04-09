@@ -6,17 +6,26 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 
 import com.flysolo.etrike.screens.main.bottom_nav.ride.RideEvents
 import com.flysolo.etrike.screens.main.bottom_nav.ride.RideState
+import com.flysolo.etrike.screens.main.bottom_nav.ride.SelectedLocation
 import com.flysolo.etrike.screens.main.bottom_nav.ride.utils.decodePolyline
+import com.flysolo.etrike.utils.getAddressFromLatLng
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
@@ -36,9 +45,25 @@ fun EtrikeMap(
     state: RideState,
     events: (RideEvents) -> Unit,
     cameraState : CameraPositionState,
+    onMapClick : (SelectedLocation) -> Unit
 ) {
     val markerState = rememberMarkerState()
     val scope = rememberCoroutineScope()
+    var  selectedPlace by remember { mutableStateOf<SelectedLocation?>(null) }
+
+    if (selectedPlace != null) {
+        LocationDialog(
+            latLng = selectedPlace!!,
+            onConfirm = {
+                selectedPlace = null
+                onMapClick(it)
+                        },
+            onDismiss = {
+                selectedPlace = null}
+        )
+    }
+
+
     GoogleMap(
         modifier = Modifier
             .fillMaxSize(),
@@ -50,16 +75,21 @@ fun EtrikeMap(
             scrollGesturesEnabledDuringRotateOrZoom = false
         ),
         onMapLoaded = {
-            markerState.position = state.currentPosition
-            scope.launch {
-                cameraState.animate(
-                    update = CameraUpdateFactory.newLatLngZoom(state.currentPosition, 15f),
-                    durationMs = 1000 // Adjust duration for the animation in milliseconds
-                )
+            state.currentLocation?.latLang?.let { position ->
+                markerState.position =position
+                scope.launch {
+                    cameraState.animate(
+                        update = CameraUpdateFactory.newLatLngZoom(position, 15f),
+                        durationMs = 1000
+                    )
+                }
             }
-        },
-        onMapClick = {
 
+        },
+        onMapClick = { loc->
+            events(RideEvents.OnFetNearestPlaceFromLatLng(loc) {
+                selectedPlace = it
+            })
         }
     ) {
         Marker(
@@ -79,11 +109,11 @@ fun EtrikeMap(
                     width = 15f
                 )
             }
-            if (state.selectedPlace != null) {
-                val position = state.selectedPlace.location ?: LatLng(0.00,0.00)
+            if (state.selectedLocation != null) {
+                val position = state.selectedLocation.latLang ?: LatLng(0.00,0.00)
                 Marker(
                     state = rememberMarkerState(position = position),
-                    title = "Destination",
+                    title = "${state.selectedLocation.name}",
                     snippet = "This is your destination"
                 )
             }
@@ -91,3 +121,35 @@ fun EtrikeMap(
     }
 }
 
+@Composable
+fun LocationDialog(
+    modifier: Modifier = Modifier,
+    latLng: SelectedLocation,
+    onConfirm: (SelectedLocation) -> Unit,
+    onDismiss: () -> Unit,
+) {
+
+
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                onConfirm(latLng)
+            }) {
+                Text("Book now")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        title = {
+            Text(text = latLng.name?:"Unknown")
+        },
+        text = {
+            Text("Do you want to book this location?")
+        }
+    )
+}

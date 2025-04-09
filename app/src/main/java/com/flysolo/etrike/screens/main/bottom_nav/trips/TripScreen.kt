@@ -64,7 +64,7 @@ fun TripScreen(
         }
         items(state.trips) {
             TripsCard(transactions = it) {
-                navHostController.navigate(AppRouter.VIEWTRIP.navigate(it.id?: ""))
+                navHostController.navigate(AppRouter.TRANSACTIONS.navigate(it.id?: ""))
             }
         }
     }

@@ -106,6 +106,7 @@ fun RegisterForm(
             onValueChange = { events(RegisterEvents.OnEmailChange(it)) },
             label = { Text("Email") },
             shape = shapes,
+            readOnly = state.users != null,
             isError = state.email.hasError,
             supportingText = {
                 Text(

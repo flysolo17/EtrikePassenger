@@ -2,8 +2,10 @@ package com.flysolo.etrike.models.transactions
 
 import androidx.compose.ui.graphics.Color
 import com.flysolo.etrike.models.directions.GooglePlacesInfo
+import com.flysolo.etrike.screens.main.bottom_nav.ride.SelectedLocation
 
 import com.flysolo.etrike.utils.generateRandomNumberString
+import com.google.android.gms.maps.model.LatLng
 import java.util.Date
 
 
@@ -14,11 +16,22 @@ data class Transactions(
     val franchiseID : String ? = null,
     val status: TransactionStatus = TransactionStatus.PENDING,
     val rideDetails: GooglePlacesInfo ? = null,
+    val locationDetails: LocationDetails = LocationDetails(),
     val payment : Payment = Payment(),
     val note : String ?= null,
     val scheduleDate : Date ? = null,
     val createdAt : Date  = Date(),
     val updatedAt : Date = Date()
+)
+
+data class LocationData(
+    val name : String ? = null,
+    val latitude : Double = 0.00,
+    val longitude : Double = 0.00
+)
+data class LocationDetails(
+    val pickup : LocationData ? = null,
+    val dropOff : LocationData ? = null,
 )
 
 
@@ -70,3 +83,18 @@ fun TransactionStatus.toColor(): Color {
     }
 }
 
+
+
+fun Transactions.getPickupCoordinates() : LatLng {
+    return LatLng(
+        this.locationDetails.pickup?.latitude ?: 0.00,
+        this.locationDetails.pickup?.longitude  ?: 0.00,
+    )
+}
+
+fun Transactions.getDropOffCoordinates() : LatLng {
+    return LatLng(
+        this.locationDetails.dropOff?.latitude ?: 0.00,
+        this.locationDetails.dropOff?.longitude  ?: 0.00,
+    )
+}

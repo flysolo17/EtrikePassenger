@@ -62,6 +62,8 @@ import com.flysolo.etrike.config.AppRouter
 import com.flysolo.etrike.models.transactions.PaymentMethod
 import com.flysolo.etrike.models.transactions.PaymentStatus
 import com.flysolo.etrike.models.transactions.TransactionStatus
+import com.flysolo.etrike.models.transactions.getDropOffCoordinates
+import com.flysolo.etrike.models.transactions.getPickupCoordinates
 import com.flysolo.etrike.models.users.User
 import com.flysolo.etrike.screens.main.bottom_nav.ride.utils.decodePolyline
 import com.flysolo.etrike.screens.main.components.InformationCard
@@ -115,6 +117,7 @@ fun ViewTripScreen(
             events(ViewTripEvents.OnViewTrip(transactionID))
         }
     }
+
     LaunchedEffect(state.messages) {
         if (state.messages != null) {
             context.shortToast(state.messages)
@@ -151,15 +154,11 @@ fun ViewTripScreen(
                         }
                     }
                 }
-
                 else -> {
                     val pickUpLocation = state.transactions?.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.start_address
                     val endLocation = state.transactions?.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.end_address
-
                     val route = state.transactions?.rideDetails?.routes?.firstOrNull()
                     val leg = route?.legs?.firstOrNull()
-
-                    // Calculate the distance in kilometers (from meters)
                     val distanceInKm = leg?.distance?.value?.let {
                         it / 1000.0
                     }
@@ -215,56 +214,59 @@ fun ViewTripScreen(
                                 }
                             )
                         }
-                        item(span = { GridItemSpan((2)) }) {
-                            val transaction = state.transactions
-                            val pickup = transaction?.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.start_address?.getLatLngFromAddress(context) ?: LatLng(0.00,0.00)
-                            val dropoff = transaction?.rideDetails?.routes?.firstOrNull()?.legs?.firstOrNull()?.end_address?.getLatLngFromAddress(context) ?: LatLng(0.00,0.00)
-                            val boundsBuilder = LatLngBounds.Builder()
-                            boundsBuilder.include(pickup)
-                            boundsBuilder.include(dropoff)
-                            val bounds = boundsBuilder.build()
-                            GoogleMap(
-                                modifier = modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp)
-                                    .clip(MaterialTheme.shapes.large),
-                                cameraPositionState = cameraState,
-                                onMapLoaded = {
-                                    val padding = 100
-                                    cameraState.move(CameraUpdateFactory.newLatLngBounds(bounds, padding))
-                                },
-                                onMapClick = {}
-                            ) {
-                                Marker(
-                                    state = rememberMarkerState(position = pickup),
-                                    title = "Pickup Location",
-                                    snippet = "This is your current location."
-                                )
-                                transaction?.rideDetails?.routes?.firstOrNull()?.overview_polyline?.points?.let { encodedPolyline ->
-                                    decodePolyline(encodedPolyline).let { polylinePoints ->
-                                        Polyline(
-                                            points = polylinePoints,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            width = 15f
-                                        )
+                        if (state.transactions != null) {
+                            item(span = { GridItemSpan((2)) }) {
+                                val transaction = state.transactions
+
+                                val boundsBuilder = LatLngBounds.Builder()
+                                boundsBuilder.include(transaction!!.getPickupCoordinates())
+                                boundsBuilder.include(transaction.getDropOffCoordinates())
+                                val bounds = boundsBuilder.build()
+                                GoogleMap(
+                                    modifier = modifier
+                                        .fillMaxWidth()
+                                        .height(300.dp)
+                                        .clip(MaterialTheme.shapes.large),
+                                    cameraPositionState = cameraState,
+                                    onMapLoaded = {
+                                        val padding = 100
+                                        cameraState.move(CameraUpdateFactory.newLatLngBounds(bounds, padding))
+                                    },
+                                    onMapClick = {}
+                                ) {
+
+                                    Marker(
+                                        state = rememberMarkerState(position = state.transactions!!.getPickupCoordinates()),
+                                        title = "${transaction?.locationDetails?.pickup?.name}",
+                                        snippet = "This is your current location."
+                                    )
+                                    transaction?.rideDetails?.routes?.firstOrNull()?.overview_polyline?.points?.let { encodedPolyline ->
+                                        decodePolyline(encodedPolyline).let { polylinePoints ->
+                                            Polyline(
+                                                points = polylinePoints,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                width = 15f
+                                            )
+                                        }
                                     }
+
+                                    Marker(
+                                        state = rememberMarkerState(position = state.transactions.getDropOffCoordinates()),
+                                        title = "${transaction.locationDetails?.dropOff?.name}",
+                                        snippet = "This is your destination."
+                                    )
                                 }
-
-                                Marker(
-                                    state = rememberMarkerState(position = dropoff),
-                                    title = "Drop Location",
-                                    snippet = "This is your destination."
-                                )
                             }
-                        }
 
+
+                        }
 
                         item(span = { GridItemSpan((2)) }) {
                             InformationCard(
                                 modifier = modifier,
                                 label = "Pickup",
                                 icon = Icons.Default.Place,
-                                value = pickUpLocation
+                                value =  "${state.transactions?.locationDetails?.pickup}",
                             )
                         }
                         item(span = { GridItemSpan((2)) }) {
@@ -285,10 +287,11 @@ fun ViewTripScreen(
                                     val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
                                         setPackage("com.google.android.apps.maps")
                                     }
-                                    context.startActivity(mapIntent) },
+                                    context.startActivity(mapIntent)
+                                                              },
                                 label = "Drop off",
                                 icon = Icons.Default.Place,
-                                value = endLocation
+                                value =  "${state.transactions?.locationDetails?.dropOff}",
                             )
                         }
                         item() {
@@ -429,8 +432,6 @@ fun DriverListItem(
                             )
                         }
                     }
-
-
                 }
 
             }

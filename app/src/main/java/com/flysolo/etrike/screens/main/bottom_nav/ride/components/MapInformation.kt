@@ -61,7 +61,7 @@ fun MapInformationBottomSheet(
     state: RideState,
     events: (RideEvents) -> Unit,
 ) {
-    val selectedLocation = state.selectedPlace
+    val selectedLocation = state.selectedLocation
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
@@ -73,15 +73,16 @@ fun MapInformationBottomSheet(
     val route = result?.routes?.firstOrNull()
     val leg = route?.legs?.firstOrNull()
 
-    // Calculate the distance in kilometers (from meters)
+
     val distanceInKm = leg?.distance?.value?.let {
         it / 1000.0
     }
 
-
     val cost = distanceInKm?.let { it * 20 }
+
     val origin = leg?.let { "Origin: ${it.start_address}" }
     val destination = leg?.let { "Destination: ${it.end_address}" }
+
     if (showBottomSheet) {
         ModalBottomSheet(
             modifier = Modifier.fillMaxSize(),
@@ -106,12 +107,24 @@ fun MapInformationBottomSheet(
                     }
 
                 }
-                item {
-                    val currentPositionLabel = state.currentPosition.getAddressFromLatLng(context)
+                item(
+                    span = { GridItemSpan(2) }
+                ) {
+                    val currentPositionLabel = state.currentLocation?.name
                     InformationCard(
                         label = "Pickup Location",
                         icon = Icons.Default.Place,
                         value = currentPositionLabel
+                    )
+                }
+                item(
+                    span = { GridItemSpan(2) }
+                ) {
+                    val dropoff = state.selectedLocation?.name
+                    InformationCard(
+                        label = "Drop off Location",
+                        icon = Icons.Default.Place,
+                        value = dropoff
                     )
                 }
                 item {
@@ -123,14 +136,6 @@ fun MapInformationBottomSheet(
                     )
                 }
 
-                item {
-                    val dropoff = state.selectedPlace?.name
-                    InformationCard(
-                        label = "Drop off Location",
-                        icon = Icons.Default.Place,
-                        value = dropoff
-                    )
-                }
                 item {
                     InformationCard(
                         label = "Total Amount",
@@ -196,7 +201,7 @@ fun MapInformationBottomSheet(
                 ) {
                     Button(
                         modifier = modifier.fillMaxWidth().padding(8.dp),
-                        enabled = !state.isLoading && state.selectedPlace != null,
+                        enabled = !state.isLoading && state.selectedLocation != null,
                         shape = MaterialTheme.shapes.small,
                         onClick = {
                             showBottomSheet = false
@@ -208,8 +213,8 @@ fun MapInformationBottomSheet(
                 }
             }
         }
-
     }
+
     FloatingActionButton(
         onClick = {
             showBottomSheet = true

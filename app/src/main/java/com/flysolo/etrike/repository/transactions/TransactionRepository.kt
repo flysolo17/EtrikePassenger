@@ -36,4 +36,17 @@ interface TransactionRepository {
     suspend fun cancelTrip(
         transactionID: String
     ) : Result<String>
+
+    suspend fun getTransactionByID(
+        transactionID: String,
+        result: (UiState<Transactions?>) -> Unit
+    )
+
+    suspend fun markAsFailed(
+        transactionID: String
+    ) : Result<String>
+
+    suspend fun markAsPending(
+        transactionID: String
+    ) : Result<String>
 }

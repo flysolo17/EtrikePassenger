@@ -1,4 +1,6 @@
 package com.flysolo.etrike.models.directions
+
+
 data class Distance(
     val text: String? = null,
     val value: Int? = null

@@ -6,10 +6,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import com.flysolo.etrike.config.AppRouter
+import com.flysolo.etrike.models.users.User
 import com.flysolo.etrike.screens.auth.forgotPassword.ForgotPasswordScreen
 import com.flysolo.etrike.screens.auth.forgotPassword.ForgotPasswordViewModel
 import com.flysolo.etrike.screens.auth.login.LoginScreen
 import com.flysolo.etrike.screens.auth.login.LoginViewModel
+import com.flysolo.etrike.screens.auth.pin.PinEvents
+import com.flysolo.etrike.screens.auth.pin.PinScreen
+import com.flysolo.etrike.screens.auth.pin.PinViewModel
 import com.flysolo.etrike.screens.auth.register.RegisterScreen
 import com.flysolo.etrike.screens.auth.register.RegisterViewModel
 import com.flysolo.etrike.screens.auth.verification.VerificationScreen
@@ -48,9 +52,19 @@ fun NavGraphBuilder.authNavGraph(
                 events = viewModel::events
             )
         }
+
         composable(route = AppRouter.REGISTER.route) {
             val viewModel = hiltViewModel<RegisterViewModel>()
             RegisterScreen(
+                state = viewModel.state,
+                events = viewModel::events,
+                navHostController = navController
+            )
+        }
+        composable(route = AppRouter.PIN.route) {
+            val viewModel = hiltViewModel<PinViewModel>()
+
+            PinScreen(
                 state = viewModel.state,
                 events = viewModel::events,
                 navHostController = navController

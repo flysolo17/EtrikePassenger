@@ -2,6 +2,9 @@ package com.flysolo.etrike.repository.messages
 
 import android.util.Log
 import com.flysolo.etrike.models.messages.Message
+import com.flysolo.etrike.models.messages.UserWithMessage
+import com.flysolo.etrike.models.users.USER_COLLECTION
+import com.flysolo.etrike.models.users.User
 import com.flysolo.etrike.repository.auth.AuthRepository
 import com.flysolo.etrike.utils.UiState
 import com.google.firebase.auth.FirebaseAuth
@@ -10,6 +13,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.toObjects
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 
@@ -105,5 +110,61 @@ class MessageRepositoryImpl(
             Result.failure(Exception("Failed to get unseen messages: ${e.message}"))
         }
     }
+
+    override suspend fun getUserWithMessages(
+        myID: String,
+        result: (UiState<List<UserWithMessage>>) -> Unit
+    ) {
+        result(UiState.Loading)
+        callbackFlow {
+            val listenerRegistration = firestore.collection(MESSAGE_COLLECTION)
+                .where(
+                    Filter.or(
+                        Filter.equalTo("senderID", myID),
+                        Filter.equalTo("receiverID", myID)
+                    )
+                ).addSnapshotListener { value, error ->
+                    error?.let { exception ->
+                        Log.e(MESSAGE_COLLECTION, "Error fetching messages: ${exception.localizedMessage}")
+                        close(exception)
+                        return@addSnapshotListener
+                    }
+
+                    value?.let { querySnapshot ->
+                        val messages = querySnapshot.toObjects(Message::class.java)
+                        Log.d(MESSAGE_COLLECTION, "Fetched ${messages.size} messages")
+                        trySend(messages)
+                    }
+                }
+
+            awaitClose {
+                Log.d(MESSAGE_COLLECTION, "Listener registration removed")
+                listenerRegistration.remove()
+            }
+        }.collect { messages ->
+            val groupedMessages = messages.groupBy { message ->
+                if (message.senderID == myID) message.receiverID else message.senderID
+            }
+
+            val userWithMessages = groupedMessages.mapNotNull { (otherId, messages) ->
+                otherId?.let {
+                    val user = firestore.collection(USER_COLLECTION)
+                        .document(otherId)
+                        .get()
+                        .await()
+                        .toObject(User::class.java)
+
+                    user?.let {
+                        UserWithMessage(user = user, messages = messages.sortedByDescending { it.createdAt })
+                    }
+                }
+            }
+            Log.d(MESSAGE_COLLECTION, "Processed ${userWithMessages.size} users with messages")
+            result(UiState.Success(userWithMessages))
+        }
+    }
+
+
+
 }
 

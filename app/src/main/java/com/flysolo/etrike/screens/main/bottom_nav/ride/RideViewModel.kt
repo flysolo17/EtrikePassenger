@@ -10,44 +10,48 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.ImageLoader
 import com.flysolo.etrike.R
-import com.flysolo.etrike.models.transactions.Location
+import com.flysolo.etrike.models.transactions.LocationData
+import com.flysolo.etrike.models.transactions.LocationDetails
 import com.flysolo.etrike.models.transactions.Payment
-import com.flysolo.etrike.models.transactions.PaymentMethod
 import com.flysolo.etrike.models.transactions.TransactionStatus
 import com.flysolo.etrike.models.transactions.Transactions
-
 import com.flysolo.etrike.repository.directions.DirectionsRepository
+import com.flysolo.etrike.repository.places.PlacesRepository
 import com.flysolo.etrike.repository.transactions.TransactionRepository
 import com.flysolo.etrike.utils.generateRandomNumberString
 import com.flysolo.etrike.utils.getAddressFromLatLng
 import com.flysolo.etrike.utils.shortToast
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.libraries.places.api.model.CircularBounds
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.model.RectangularBounds
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import java.util.Date
 import javax.inject.Inject
 
 
 @HiltViewModel
 class RideViewModel @Inject constructor(
-    private val placesClient: PlacesClient,
+    private val placesRepository: PlacesRepository,
     private val directionsRepository: DirectionsRepository,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
     var state by mutableStateOf(RideState())
+
+
     fun events(e : RideEvents) {
         when(e) {
             is RideEvents.OnSetUsers -> {
                 state = state.copy(user = e.user)
-
             }
-            is RideEvents.OnCurrentLocation -> state = state.copy(currentPosition = e.latLng)
+
+            is RideEvents.OnCurrentLocation -> setCurrentLocation(e.latLng)
             is RideEvents.OnSearch -> search(e.text)
             is RideEvents.OnFetchPlacePrediction -> fetchPrediction(e.placeID)
             is RideEvents.OnGetDirections -> getDirections(e.origin,e.destination)
@@ -56,22 +60,80 @@ class RideViewModel @Inject constructor(
                 note = e.text
             )
 
-            is RideEvents.OnSetPlace -> state = state.copy(selectedPlace = e.places)
+            is RideEvents.OnSetPlace -> {
+                val selectedLocation = SelectedLocation(
+                    name = e.places?.name,
+                    latLang = e.places?.latLng
+                )
+                state = state.copy(selectedLocation =selectedLocation)
+            }
+
             is RideEvents.OnRideNow -> ride(e.context)
             is RideEvents.OnSelectPaymentMethod -> state = state.copy(
                 selectedPaymentMethod = e.method
             )
+
+            is RideEvents.OnSelectedPosition -> {
+                state = state.copy(
+                    selectedLocation = e.selectedLocation
+                )
+            }
+
+            is RideEvents.OnFetNearestPlaceFromLatLng -> fetchNearestLocation(e.latLng,e.callback)
         }
     }
 
+    private fun setCurrentLocation(latLng: LatLng) {
+        viewModelScope.launch {
+            placesRepository.getNearbyPlaces(latLng).onSuccess {
+                val data = it.getOrNull(0)
+                if (data != null) {
+                    val selectedLocation = SelectedLocation(
+                        name = data.name,
+                        latLang = data.location
+                    )
+                    state = state.copy(
+                        currentLocation = selectedLocation
+                    )
+                }
+            }
+        }
+    }
+
+    private fun fetchNearestLocation(latLng: LatLng, callback: (SelectedLocation?) -> Unit) {
+        viewModelScope.launch {
+
+            placesRepository.getNearbyPlaces(latLng).onSuccess {
+                val data = it.getOrNull(0)
+                if (data != null) {
+                    val selectedLocation = SelectedLocation(
+                        name = data.name,
+                        latLang = data.location
+                    )
+                    callback(selectedLocation)
+                } else {
+                    callback(null)
+                }
+            }.onFailure {
+                state = state.copy(
+                    errors = it.localizedMessage?.toString()
+                )
+            }
+        }
+
+    }
+
+
+
     private fun ride(context: Context) {
-        if (state.selectedPlace == null || state.googlePlacesInfo == null) {
+        if (state.googlePlacesInfo == null || state.selectedLocation == null) {
             context.shortToast("Add a drop off location")
             return
         }
-        val currentPositionLabel = state.currentPosition.getAddressFromLatLng(context)
-        val dropoff = state.selectedPlace?.name
-        val dropLocation = state.selectedPlace?.location
+
+        val currentPositionLabel = state.currentLocation?.name
+        val dropoff = state.selectedLocation?.name
+        val dropLocation = state.selectedLocation?.latLang
         val result = state.googlePlacesInfo
         val route = result?.routes?.firstOrNull()
         val leg = route?.legs?.firstOrNull()
@@ -83,6 +145,18 @@ class RideViewModel @Inject constructor(
             passengerID = state.user?.id,
             status = TransactionStatus.PENDING,
             rideDetails = state.googlePlacesInfo,
+            locationDetails = LocationDetails(
+                pickup =  LocationData(
+                    name = state.currentLocation?.name,
+                    latitude =  state.currentLocation?.latLang?.latitude ?: 0.00,
+                    longitude = state.currentLocation?.latLang?.longitude ?: 0.00,
+                ),
+                dropOff = LocationData(
+                    name = state.selectedLocation?.name,
+                    latitude =  state.selectedLocation?.latLang?.latitude ?: 0.00,
+                    longitude = state.selectedLocation?.latLang?.longitude ?: 0.00,
+                ),
+            ),
             payment = Payment(
                 id = generateRandomNumberString(6),
                 amount = cost ?: 0.00,
@@ -124,9 +198,8 @@ class RideViewModel @Inject constructor(
                 imageLoader.enqueue(request)
             }
 
-        }catch (e :Exception) {
+        } catch (e :Exception) {
             Log.e("Image error",e.message,e)
-
         }
 
     }
@@ -148,34 +221,30 @@ class RideViewModel @Inject constructor(
         }
     }
 
+
+
+
     private fun fetchPrediction(placeID: String) {
-        placesClient.fetchPlace(FetchPlaceRequest.builder(placeID, listOf(Place.Field.LAT_LNG, Place.Field.NAME)).build()).addOnSuccessListener { fetchResponse ->
-            val place = fetchResponse.place
-            state = state.copy(selectedPlace = place, suggestions = emptyList(), searchText = place.name ?: "")
+        viewModelScope.launch {
+            placesRepository.getPlaceInfo(placeID).onSuccess {
+                val location = SelectedLocation(
+                    name = it.name,
+                    latLang = it.location
+                )
+                state = state.copy(selectedLocation = location, suggestions = emptyList(), searchText = it.name ?: "")
+            }
         }
     }
 
+
     private fun search(text: String) {
         state = state.copy(searchText = text)
-        val request = FindAutocompletePredictionsRequest.builder()
-            .setQuery(text)
-            .setLocationBias(
-                RectangularBounds.newInstance(
-                    LatLngBounds(
-                        LatLng(16.2108, 120.4683),
-                        LatLng(16.2508, 120.4983)
-                    )
-                ))
-            .build()
-
-        placesClient.findAutocompletePredictions(request)
-            .addOnSuccessListener { response ->
+        viewModelScope.launch {
+            placesRepository.searchPlaces(text).onSuccess {
                 state = state.copy(
-                    suggestions = response.autocompletePredictions
+                    suggestions = it
                 )
             }
-            .addOnFailureListener { e ->
-                Log.e("PlaceSearch", "Error: ${e.message}")
-            }
+        }
     }
 }
