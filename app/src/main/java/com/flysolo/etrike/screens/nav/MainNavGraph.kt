@@ -328,9 +328,7 @@ fun MainNavGraph(
             arguments = listOf(navArgument("uid") { type = NavType.StringType })
         ) { backStackEntry ->
             val  passengerID = backStackEntry.arguments?.getString("uid") ?: ""
-
             val viewModel = hiltViewModel<RecentActivityViewModel>()
-
             RecentActivityScreen(
                 uid = passengerID,
                 state = viewModel.state,

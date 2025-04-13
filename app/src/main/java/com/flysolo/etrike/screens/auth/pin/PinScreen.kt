@@ -117,7 +117,6 @@ fun PinScreen(
             navHostController.navigate(AppRouter.MAIN.route) {}
         } else {
             events.invoke(PinEvents.OnReset)
-            context.shortToast("Invalid Pin")
         }
     }
     if (state.verifying) {
