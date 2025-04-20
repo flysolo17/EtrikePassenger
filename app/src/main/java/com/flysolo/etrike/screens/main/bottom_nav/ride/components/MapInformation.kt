@@ -58,6 +58,7 @@ import com.maxkeppeker.sheets.core.views.Grid
 @Composable
 fun MapInformationBottomSheet(
     modifier: Modifier = Modifier,
+    insideBoundery : Boolean = false,
     state: RideState,
     events: (RideEvents) -> Unit,
 ) {
@@ -96,6 +97,7 @@ fun MapInformationBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 columns = GridCells.Fixed(2)
             ) {
+
                 item(
                     span = { GridItemSpan(2) }
                 ) {
@@ -105,6 +107,11 @@ fun MapInformationBottomSheet(
                     ) {
                         Text("Trip Information")
                     }
+                }
+                item(
+                    span = { GridItemSpan(2) }
+                ) {
+                    Text("${insideBoundery}")
 
                 }
                 item(

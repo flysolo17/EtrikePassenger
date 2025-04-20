@@ -78,7 +78,12 @@ import com.flysolo.etrike.utils.shortToast
 import com.flysolo.etrike.utils.toPhp
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap.MAP_TYPE_NONE
+import com.google.android.gms.maps.GoogleMap.MAP_TYPE_NORMAL
+import com.google.android.gms.maps.GoogleMap.MAP_TYPE_SATELLITE
+import com.google.android.gms.maps.GoogleMapOptions
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
@@ -150,9 +155,24 @@ fun BookingScreen(
             REQUEST_LOCATION_PERMISSION
         )
     }
+
+
+    val rosarioBounds = LatLngBounds(
+        LatLng(16.1900, 120.4500), // Southwest corner (approx)
+        LatLng(16.2700, 120.5200)  // Northeast corner (approx)
+    )
+
+
+    fun insideBounds(selectedLocation: LatLng ?): Boolean {
+        if (selectedLocation == null) return false
+        return rosarioBounds.contains(selectedLocation)
+    }
+
     if (state.selectedLocation != null) {
+        val insideBounds = insideBounds(state.selectedLocation?.latLang)
         SelectedLocationInformation(
             selectedMapLocation = state.selectedLocation,
+            insideBounds = insideBounds,
             onConfirm = { location ,type ->
                 events(BookingEvents.OnSetSelectedLocation(location,type))
             },
@@ -216,10 +236,15 @@ fun BookingScreen(
 
     LaunchedEffect(state.pickupLocation,state.dropOffLocation) {
         if (state.pickupLocation != null && state.dropOffLocation != null) {
-            val pickupCoordinates = state.pickupLocation.latLang
-            val dropOffCoordinates = state.dropOffLocation.latLang
-            cameraState.animate(CameraUpdateFactory.newLatLngZoom(dropOffCoordinates!!, 15f))
-            events.invoke(BookingEvents.OnGetDirections(pickup = state.pickupLocation, dropOff = state.dropOffLocation))
+            val inBoundary =insideBounds(state.pickupLocation?.latLang) && insideBounds(state.dropOffLocation?.latLang)
+            if (inBoundary) {
+                val pickupCoordinates = state.pickupLocation.latLang
+                val dropOffCoordinates = state.dropOffLocation.latLang
+                cameraState.animate(CameraUpdateFactory.newLatLngZoom(dropOffCoordinates!!, 15f))
+                events.invoke(BookingEvents.OnGetDirections(pickup = state.pickupLocation, dropOff = state.dropOffLocation))
+            } else {
+                //show dialog
+            }
         }
     }
 
@@ -293,6 +318,7 @@ fun BookingScreen(
                 .padding(it)
         ) {
             GoogleMap(
+
                 modifier = modifier.weight(1f),
                 cameraPositionState = cameraState,
                 uiSettings = MapUiSettings(
@@ -301,6 +327,7 @@ fun BookingScreen(
                     zoomGesturesEnabled = true,
                     scrollGesturesEnabledDuringRotateOrZoom = false
                 ),
+
                 onMapLoaded = {
                     val currentLocation = state.pickupLocation?.latLang
                     currentLocation?.let { location ->
@@ -308,6 +335,8 @@ fun BookingScreen(
                             CameraUpdateFactory.newLatLngZoom(location, 15f)
                         )
                     }
+
+
                 },
                 onMapClick = {
                     val location = it
@@ -317,9 +346,10 @@ fun BookingScreen(
                 val currentLocation = state.pickupLocation?.latLang
                 val dropOffLocation = state.dropOffLocation?.latLang
                 currentLocation?.let { location ->
+                    val message = if (insideBounds(location)) "Pickup Location" else "Not Available"
                     Marker(
                         state = pickupLocationState,
-                        title = "Pickup Location"
+                        title = message
                     )
 
                     Circle(
@@ -346,9 +376,10 @@ fun BookingScreen(
                 }
 
                 dropOffLocation?.let { location ->
+                    val message = if (insideBounds(location)) "Drop-off Location" else "Not Available"
                     Marker(
                         state = dropOffLocationState,
-                        title = "Drop-off Location"
+                        title = message
                     )
                     Circle(
                         center = location,
@@ -396,6 +427,7 @@ fun BookingScreen(
                     Column(
                         horizontalAlignment = Alignment.End
                     ) {
+
 
                         Text("${distanceInKm}km", style = MaterialTheme.typography.labelSmall.copy(
                             color = Color.Gray
@@ -464,15 +496,19 @@ fun BookingScreen(
                     true
                 }
 
+                val inBoundary =insideBounds(state.pickupLocation?.latLang) && insideBounds(state.dropOffLocation?.latLang)
+
                 Button(
                     onClick = {
                         events.invoke(BookingEvents.OnBookNow(context))
                     },
-                    enabled = state.googlePlacesInfo != null && isBooking && !state.isLoading,
+                    enabled = state.googlePlacesInfo != null && isBooking && !state.isLoading && inBoundary,
                     modifier = modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.small
                 ) {
-                    Text("Book now")
+                    val allLocationNotNull = state.pickupLocation?.latLang != null && state.dropOffLocation?.latLang != null
+                    val title = if (!inBoundary && allLocationNotNull) "Not Available" else  "Book now"
+                    Text(title,modifier = modifier.padding(8.dp))
                 }
             }
         }

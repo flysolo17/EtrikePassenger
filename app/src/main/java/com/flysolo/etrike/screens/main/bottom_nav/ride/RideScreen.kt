@@ -70,6 +70,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
@@ -107,6 +108,7 @@ fun RideScreen(
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     val cameraState = rememberCameraPositionState()
 
+
     LaunchedEffect(state.isConfirmed) {
         if (state.isConfirmed != null) {
             context.shortToast("Transaction created")
@@ -138,7 +140,7 @@ fun RideScreen(
 
 
 
-    Scaffold() {
+    Scaffold {
         Box(
             modifier = Modifier
                 .fillMaxSize()

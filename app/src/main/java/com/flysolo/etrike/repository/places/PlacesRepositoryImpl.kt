@@ -23,14 +23,17 @@ class PlacesRepositoryImpl(
 
     override suspend fun searchPlaces(text: String): Result<List<AutocompletePrediction>> {
         return try {
+            //remove AutocompletePrediction outside rosario
+            val rosarioBounds = LatLngBounds(
+                LatLng(16.1900, 120.4500), // Southwest corner (approx)
+                LatLng(16.2700, 120.5200)  // Northeast corner (approx)
+            )
+
             val request = FindAutocompletePredictionsRequest.builder()
                 .setQuery(text)
                 .setLocationBias(
                     RectangularBounds.newInstance(
-                        LatLngBounds(
-                            LatLng(16.2108, 120.4683),
-                            LatLng(16.2508, 120.4983)
-                        )
+                        rosarioBounds
                     )
                 )
                 .build()

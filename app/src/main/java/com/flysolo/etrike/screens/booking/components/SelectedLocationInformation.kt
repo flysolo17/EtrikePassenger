@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.flysolo.etrike.screens.main.bottom_nav.ride.SelectedLocation
+import com.google.android.gms.maps.model.LatLng
 
 enum class LocationType {
     PICK_UP,
@@ -39,6 +40,7 @@ enum class LocationType {
 @Composable
 fun SelectedLocationInformation(
     modifier: Modifier = Modifier,
+    insideBounds :Boolean,
     selectedMapLocation: SelectedLocation,
     onConfirm: (SelectedLocation ,LocationType) -> Unit,
     onDismiss : () -> Unit
@@ -51,49 +53,61 @@ fun SelectedLocationInformation(
     AlertDialog(
         onDismissRequest = { onDismiss()},
         title = {
-            Text(text = selectedMapLocation.name ?: "Unknown Location")
+            val text = if (insideBounds) {
+                selectedMapLocation.name ?: "Unknown Location"
+            } else {
+                "Not Available"
+            }
+            Text(text = text)
         },
         text = {
-            Column {
-                Text(text = "Do you want to select this location?")
-                Spacer(modifier = Modifier.height(16.dp))
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = it },
-                ) {
-                    TextField(
-                        value = selectedOption,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Select Type") },
-                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
-                        modifier = modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-
-                    ExposedDropdownMenu(
+            if (!insideBounds) {
+                Text(text = "This location is outside Rosario La union.")
+                return@AlertDialog
+            } else {
+                Column {
+                    Text(text = "Do you want to select this location?")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ExposedDropdownMenuBox(
                         expanded = expanded,
-                        onDismissRequest = { expanded = false },
+                        onExpandedChange = { expanded = it },
                     ) {
-                        options.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option, style = MaterialTheme.typography.bodyLarge) },
-                                onClick = {
-                                    selectedOption = option
-                                    expanded = false
-                                },
-                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                            )
+                        TextField(
+                            value = selectedOption,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Select Type") },
+                            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                        ) {
+                            options.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option, style = MaterialTheme.typography.bodyLarge) },
+                                    onClick = {
+                                        selectedOption = option
+                                        expanded = false
+                                    },
+                                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                                )
+                            }
                         }
                     }
                 }
             }
+
         },
         confirmButton = {
             Button(
                 modifier = modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.small,
+                enabled = insideBounds,
                 onClick = {
                     val locationType = if (selectedOption == options[0]) {
                         LocationType.PICK_UP
