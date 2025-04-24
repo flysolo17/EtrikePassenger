@@ -2,6 +2,7 @@ package com.flysolo.etrike.screens.booking
 
 
 import android.Manifest
+import android.R.attr
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -82,6 +83,7 @@ import com.google.android.gms.maps.GoogleMap.MAP_TYPE_NONE
 import com.google.android.gms.maps.GoogleMap.MAP_TYPE_NORMAL
 import com.google.android.gms.maps.GoogleMap.MAP_TYPE_SATELLITE
 import com.google.android.gms.maps.GoogleMapOptions
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.libraries.places.api.net.PlacesClient
@@ -89,11 +91,15 @@ import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerInfoWindowContent
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.R.attr.width
+import com.google.android.gms.maps.model.BitmapDescriptor
+
 
 enum class BookingType {
     QUEUE,
@@ -262,16 +268,54 @@ fun BookingScreen(
     val dropOffLocationState = rememberMarkerState(
         position = LatLng(0.00,0.00)
     )
-    LaunchedEffect(state.pickupLocation) {
-        if (state.pickupLocation != null) {
-            pickupLocationState.position = state.pickupLocation.latLang!!
+    var pickupIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
+    var dropOffIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
+    LaunchedEffect(state.pickupLocation, state.dropOffLocation) {
+        val currentPickup = state.pickupLocation
+        val currentDropOff = state.dropOffLocation
+        val outside = "Booking is only available within Rosario"
+        val inRosario = insideBounds(currentPickup?.latLang) && insideBounds(
+            currentDropOff?.latLang
+        )
+        if (currentPickup != null && currentDropOff != null && inRosario)  {
+            events.invoke(BookingEvents.OnGetDirections(
+                currentPickup,
+                currentDropOff
+            ))
+        }
+        currentPickup?.let { pickup ->
+            pickupLocationState.position = pickup.latLang!!
+
+            val message = if (insideBounds(pickup.latLang)) pickup.name ?: "Pickup Location" else outside
+            pickupIcon = composableToBitmap(context) {
+                CustomMapMarker(name = message)
+            }.let { BitmapDescriptorFactory.fromBitmap(it) }
+
+            if (currentDropOff == null) {
+                cameraState.animate(
+                    update = CameraUpdateFactory.newLatLngZoom(pickup.latLang, 15f),
+                    durationMs = 1000
+                )
+            }
+
+
+        }
+
+        currentDropOff?.let { dropOff ->
+            dropOffLocationState.position = dropOff.latLang!!
+
+            val message = if (insideBounds(dropOff.latLang)) currentDropOff.name ?: "Drop Off Location" else outside
+            dropOffIcon = composableToBitmap(context) {
+                CustomMapMarker(name = message)
+            }.let { BitmapDescriptorFactory.fromBitmap(it) }
+
+            cameraState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(dropOff.latLang, 15f),
+                durationMs = 1000
+            )
         }
     }
-    LaunchedEffect(state.dropOffLocation) {
-        if (state.dropOffLocation != null) {
-            dropOffLocationState.position = state.dropOffLocation.latLang!!
-        }
-    }
+
     LaunchedEffect(state.transactionCreated) {
         state.transactionCreated?.let { transactionId ->
             context.shortToast("Successfully Booked")
@@ -349,7 +393,7 @@ fun BookingScreen(
                     val message = if (insideBounds(location)) "Pickup Location" else "Not Available"
                     Marker(
                         state = pickupLocationState,
-                        title = message
+                        icon = pickupIcon
                     )
 
                     Circle(
@@ -359,6 +403,9 @@ fun BookingScreen(
                         strokeColor = Color(0xFF00FF00),
                         strokeWidth = 2.0f
                     )
+
+
+
                 }
                 val directions = state.googlePlacesInfo
 
@@ -379,7 +426,8 @@ fun BookingScreen(
                     val message = if (insideBounds(location)) "Drop-off Location" else "Not Available"
                     Marker(
                         state = dropOffLocationState,
-                        title = message
+                        title = message,
+                        icon = dropOffIcon
                     )
                     Circle(
                         center = location,
@@ -543,7 +591,7 @@ fun LocationInfo(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = pickup ?: "unknown",
+                text = pickup ?: "Select Pickup Location",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
@@ -566,7 +614,7 @@ fun LocationInfo(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = dropOff ?: "unknown",
+                text = dropOff ?: "Select Drop off Location",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 )

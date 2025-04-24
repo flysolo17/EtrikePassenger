@@ -42,6 +42,7 @@ import androidx.navigation.NavHostController
 import com.flysolo.etrike.R
 import com.flysolo.etrike.config.AppRouter
 import com.flysolo.etrike.screens.booking.BookingType
+import com.flysolo.etrike.screens.main.bottom_nav.home.components.Carousel
 import com.flysolo.etrike.screens.main.bottom_nav.home.components.RecentTripCard
 import com.flysolo.etrike.screens.main.bottom_nav.home.components.RecentTripsLayout
 import com.flysolo.etrike.utils.shortToast
@@ -75,7 +76,6 @@ fun HomeScreen(
                 )
             )
         }
-
         item {
             Card(
                 modifier = modifier.fillMaxWidth().clickable {
@@ -188,6 +188,34 @@ fun HomeScreen(
                     }
                 )
             }
+        }
+
+        item { Spacer(
+            modifier = modifier.height(16.dp)
+        ) }
+        item {
+            Row(
+                modifier = modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("How it works?",
+                    modifier = modifier.padding(8.dp),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ))
+                TextButton(
+                    onClick = {navHostController.navigate(AppRouter.FAQS.route)}
+                ) {
+                    Text("Learn more", style = MaterialTheme.typography.titleSmall)
+                }
+            }
+
+        }
+        item { Spacer(modifier = modifier.height(16.dp))
+        }
+        item {
+            Carousel()
         }
 
     }

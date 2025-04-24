@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.flysolo.etrike.models.transactions.PaymentMethod
@@ -61,24 +62,30 @@ fun PaymentDialogSelector(
 
     }
 
-    Row(
-        modifier = modifier.padding(4.dp).clickable {
-            if (payment <= 0) {
-                context.shortToast("Please select location first!")
-                return@clickable
-            }
-            dialog = !dialog
-        },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
+    Column {
+        Text("Payment Method", style = MaterialTheme.typography.labelSmall.copy(
+            color = Color.Gray
+        ))
+        Row(
+            modifier = modifier.padding(4.dp).clickable {
+                if (payment <= 0) {
+                    context.shortToast("Please select location first!")
+                    return@clickable
+                }
+                dialog = !dialog
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
 
-        Icon(
-            imageVector = if (method == PaymentMethod.CASH) Icons.Default.Money else Icons.Default.Wallet,
-            contentDescription = "Money"
-        )
-         Text(method.name.uppercase(), style = MaterialTheme.typography.titleMedium)
+            Icon(
+                imageVector = if (method == PaymentMethod.CASH) Icons.Default.Money else Icons.Default.Wallet,
+                contentDescription = "Money"
+            )
+            Text(method.name.uppercase(), style = MaterialTheme.typography.titleMedium)
+        }
     }
+
 }
 
 

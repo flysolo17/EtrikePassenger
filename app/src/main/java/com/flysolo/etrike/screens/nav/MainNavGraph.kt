@@ -30,6 +30,7 @@ import com.flysolo.etrike.screens.favorites.FavoriteViewModel
 import com.flysolo.etrike.screens.main.bottom_nav.home.HomeEvents
 import com.flysolo.etrike.screens.main.bottom_nav.home.HomeScreen
 import com.flysolo.etrike.screens.main.bottom_nav.home.HomeViewModel
+import com.flysolo.etrike.screens.main.bottom_nav.profile.FaqScreen
 import com.flysolo.etrike.screens.main.bottom_nav.profile.ProfileEvents
 import com.flysolo.etrike.screens.main.bottom_nav.profile.ProfileScreen
 import com.flysolo.etrike.screens.main.bottom_nav.profile.ProfileViewModel
@@ -333,6 +334,13 @@ fun MainNavGraph(
                 uid = passengerID,
                 state = viewModel.state,
                 events = viewModel::events,
+                navHostController = navHostController
+            )
+        }
+        composable(
+            route = AppRouter.FAQS.route
+        ) {
+            FaqScreen(
                 navHostController = navHostController
             )
         }

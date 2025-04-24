@@ -95,4 +95,11 @@ sealed class AppRouter(
         }
     }
 
+
+    data object FAQS : AppRouter(route = "faqs") {
+
+    }
+
+
+
 }

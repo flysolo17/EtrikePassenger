@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -173,6 +174,11 @@ fun ProfileScreen(
                         icon = Icons.Default.Security,
                         label = "Security Settings",
                     ) { navHostController.navigate(AppRouter.SECURITY_SETTINGS.route) }
+
+                    ActionButtons(
+                        icon = Icons.Default.QuestionAnswer,
+                        label = "Faqs",
+                    ) { navHostController.navigate(AppRouter.FAQS.route) }
                     ActionButtons(
                         icon = Icons.Default.Logout,
                         label = "Logout",

@@ -52,7 +52,7 @@ fun EtrikeDateTimePickerDialog(
     ) {
         val date = selectedDateTime.displayDate()
         val time = selectedDateTime.displayTime()
-        Text("When", style = MaterialTheme.typography.labelSmall.copy(
+        Text("Select Date", style = MaterialTheme.typography.labelSmall.copy(
             color = Color.Gray
         ))
         Text(text = date, style = MaterialTheme.typography.titleMedium.copy(
